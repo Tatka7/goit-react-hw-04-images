@@ -1,5 +1,5 @@
-import { Component } from 'react';
-import { fetchImages } from '../service/pixabayAPI';
+import { useState, useEffect } from 'react';
+import { getImages } from '../service/pixabayAPI';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import css from './App.module.css';
@@ -10,113 +10,88 @@ import Loader from './loader/Loader';
 import Button from './button/Button';
 import Modal from './modal/Modal';
 
-export class App extends Component {
-  state = {
-    images: [],
-    query: '',
-    page: 1,
-    isLoading: false,
-    showModal: false,
-    largeImage: '',
-    tags: '',
-    total: 0,
-    error: null,
-  };
+export default function App() {
+  const [images, setImages] = useState([]);
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [largeImage, setLargeImage] = useState('');
+  const [tags, setTags] = useState('');
+  const [total, setTotal] = useState(0);
+  const [error, setError] = useState(null);
 
-  componentDidUpdate(_, prevState) {
-    const { query, page } = this.state;
-    if (prevState.query !== query || prevState.page !== page) {
-      this.fetchImages(query, page);
+  useEffect(() => {
+    if (query !== '') {
+      fetchImages(query, page);
     }
-  }
+  }, [query, page]);
 
-  fetchImages = async (query, page) => {
+  const fetchImages = async (query, page) => {
     try {
-      this.setState({ isLoading: true });
-      const data = await fetchImages(query, page);
+      setIsLoading(true);
+      const data = await getImages(query, page);
       if (data.hits.length === 0) {
         return toast.error(
           'There are no images matching your search query. Please try again.'
         );
       }
-      this.setState(({ images }) => ({
-        images: [...images, ...data.hits],
-        total: data.totalHits,
-      }));
+
+      setTotal(data.totalHits);
+      setImages(prev => [...prev, ...data.hits]);
     } catch (error) {
-      this.setState({ error });
+      setError(error);
     } finally {
-      this.setState({ isLoading: false });
+      setIsLoading(false);
     }
   };
 
-  handlaSubmit = query => {
-    this.setState({ query, page: 1, images: [] });
+  const renderSubmit = query => {
+    setQuery(query);
+    setPage(1);
+    setImages([]);
   };
 
-  onLoadMore = () => {
-    this.setState(prev => ({ page: prev.page + 1 }));
+  const onLoadMore = () => {
+    setPage(prev => prev + 1);
   };
 
-  onOpenModal = (largeImage, tags) => {
-    this.setState({ showModal: true, largeImage, tags });
+  const onOpenModal = (largeImage, tags) => {
+    setShowModal(true);
+    setLargeImage(largeImage);
+    setTags(tags);
   };
 
-  onCloseModal = () => {
-    this.setState({ showModal: false, largeImage: '', tags: '' });
+  const onCloseModal = () => {
+    setShowModal(false);
+    setLargeImage('');
+    setTags('');
   };
 
-  render() {
-    const { images, isLoading, total, error, showModal, largeImage, tags } =
-      this.state;
-    // const totalPage = total / images.length;
-    return (
-      <div className={css.AppContainer}>
-        <Searchbar onSubmit={this.handlaSubmit} />
-        {images.length === 0 && <p className={css.pStart}></p>}
-        {isLoading && <Loader />}
-        {images.length !== 0 && (
-          <ImageGallery gallery={images} onOpenModal={this.onOpenModal} />
-        )}
-        {/* {totalPage > 1 && !isLoading && images.length !== 0 && ( */}
-        {total !== images.length && !isLoading && (
-          <Button onClick={this.onLoadMore} />
-        )}
-        {showModal && (
-          <Modal
-            largeImage={largeImage}
-            tags={tags}
-            onCloseModal={this.onCloseModal}
-          />
-        )}
-        {error && (
-          <p className={css.pError}>
-            There are no images matching your search query
-            <span>Please try again</span>
-          </p>
-        )}
-        <ToastContainer
-          // type={toast.TYPE.INFO}
-          autoClose={3000}
-          theme="grey"
+  return (
+    <div className={css.AppContainer}>
+      <Searchbar onSubmit={renderSubmit} />
+      {images.length === 0 && <p className={css.pStart}></p>}
+      {isLoading && <Loader />}
+      {images.length !== 0 && (
+        <ImageGallery gallery={images} onOpenModal={onOpenModal} />
+      )}
+      {/* {totalPage > 1 && !isLoading && images.length !== 0 && ( */}
+      {total !== images.length && !isLoading && <Button onClick={onLoadMore} />}
+      {showModal && (
+        <Modal
+          largeImage={largeImage}
+          tags={tags}
+          onCloseModal={onCloseModal}
         />
-      </div>
-    );
-  }
+      )}
+      {error && (
+        <p className={css.pError}>
+          There are no images matching your search query
+          <span>Please try again</span>
+        </p>
+      )}
+      <ToastContainer autoClose={3000} theme="grey" />
+    </div>
+  );
 }
-// export const App = () => {
-//   return (
-//     <div
-//       style={{
-//         height: '100vh',
-//         display: 'flex',
-//         justifyContent: 'center',
-//         alignItems: 'center',
-//         fontSize: 40,
-//         color: '#010101',
-//       }}
-//     >
-//       React homework template
-//     </div>
-//   );
-// };
